@@ -1,0 +1,5 @@
+ticket: LEARN-1001
+initiative: INIT-LEARN-EXTRACT
+handoff_path: /tmp/handoff-baton.yaml
+workspace: /workspace/example-repo
+skill_id: learning-extract

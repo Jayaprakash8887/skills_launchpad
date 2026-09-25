@@ -1,0 +1,5 @@
+ticket: PURGE-META-1001
+initiative: INIT-PURGE-DEMO
+handoff_path: /tmp/handoff-baton.yaml
+workspace: /workspace/example-meta
+skill_id: purge-initiative-artifacts-meta

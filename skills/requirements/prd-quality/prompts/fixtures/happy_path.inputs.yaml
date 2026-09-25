@@ -1,0 +1,5 @@
+ticket: FORGE-1001
+initiative: INIT-PRAYOG-SKILLS-004-THINK
+handoff_path: prd/reports/INIT-PRAYOG-SKILLS-004-THINK-prd-quality.md
+workspace: /workspace/example-meta
+skill_id: prd-quality

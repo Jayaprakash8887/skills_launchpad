@@ -1,0 +1,5 @@
+ticket: PURGE-APP-1001
+initiative: INIT-PURGE-DEMO
+handoff_path: /tmp/handoff-baton.yaml
+workspace: /workspace/example-repo
+skill_id: purge-initiative-artifacts-app

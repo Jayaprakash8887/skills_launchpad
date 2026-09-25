@@ -1,0 +1,6 @@
+ticket: FORGE-1001
+initiative: INIT-PRAYOG-SKILLS-003-PROMPTS
+handoff_path: prd/reports/Impact-Map-INIT-PRAYOG-SKILLS-003-PROMPTS.md
+workspace: /workspace/example-repo
+meta_workspace: /workspace/example-meta
+skill_id: initiative-feasibility

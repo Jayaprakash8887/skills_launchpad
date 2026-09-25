@@ -1,0 +1,5 @@
+ticket: FORGE-1001
+initiative: INIT-PRAYOG-SKILLS-003-PROMPTS
+handoff_path: /tmp/handoff-baton.yaml
+workspace: /workspace/example-repo
+skill_id: loop-spec
