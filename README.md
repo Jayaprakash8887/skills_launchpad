@@ -11,6 +11,9 @@ A VSCode/Claude Code adaptation of
 (see [NOTICE.md](NOTICE.md)). No GitHub org automation — just the harness.
 
 **Starting a new project?** Follow the [greenfield walkthrough](docs/greenfield.md).
+**Understanding the pieces?** See the [documentation index](docs/README.md) —
+[architecture](docs/architecture.md) · [rules](docs/rules.md) · [skills](docs/skills.md) ·
+[profiles](docs/profiles.md) · [references](docs/references.md) · [CLI](docs/cli.md).
 
 ## What it does
 
