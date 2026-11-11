@@ -11,6 +11,8 @@ A VSCode/Claude Code adaptation of
 (see [NOTICE.md](NOTICE.md)). No GitHub org automation — just the harness.
 
 **Starting a new project?** Follow the [greenfield walkthrough](docs/greenfield.md).
+**Adding the kit to a project that already has code?** Read
+[existing-project.md](docs/existing-project.md) first. `apply` replaces `.claude/rules/`.
 **Understanding the pieces?** See the [documentation index](docs/README.md) —
 [architecture](docs/architecture.md) · [rules](docs/rules.md) · [skills](docs/skills.md) ·
 [profiles](docs/profiles.md) · [references](docs/references.md) · [CLI](docs/cli.md) ·
@@ -70,6 +72,12 @@ Typical dev flow after a PRD is approved:
 /spec-draft → review/edit spec → /initiative-feasibility → /spec-technical-review
 → /spec-implementation-plan → /pre-implement → /loop-spec → /ground-spec
 ```
+
+With the `egm` add-on, optional fresh-reviewer gates fit in after
+`/spec-technical-review` (design review), after `/spec-implementation-plan`
+(one plan review) and after `/ground-spec` (drift report). In the PM lane, a
+PRD review goes before `/validate-requirements`. The
+[greenfield walkthrough](docs/greenfield.md) shows each step with its prompt.
 
 ## Extending
 
