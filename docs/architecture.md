@@ -21,6 +21,8 @@ Two kinds of trees exist:
 │ references/ (contracts)  │──── apply ──▶│ .harness/references/             │
 │ profiles/<name>.yaml     │──── apply ──▶│ .harness/profile.yaml            │
 │ templates/CLAUDE.*.md    │──── apply ──▶│ CLAUDE.md   (managed block)      │
+│ addons/<name>/ (--with)  │──── apply ──▶│ .harness/addons/<name>/          │
+│                          │    (merge) ─▶│ .claude/settings.json            │
 │ harness.py  · VERSION    │              │ .harness-pin.yaml  (sha256 pin)  │
 └──────────────────────────┘              └──────────────────────────────────┘
 ```
@@ -54,21 +56,29 @@ For `harness apply --repo R --profile P` (see [harness.py](../harness.py)):
    `requirements_skills` + `forge_skills`.
 2. For each skill: copy `skills/<lane>/<name>/` → `R/.harness/skills/<name>/`,
    then ensure the relative symlink `R/.claude/skills/<name>`.
-3. Copy `references/` → `R/.harness/references/`.
+3. Copy `references/` → `R/.harness/references/`. For each add-on (from
+   `--with`, plus any already in the pin): copy `addons/<name>/` →
+   `R/.harness/addons/<name>/`. For `--without`, remove that folder.
 4. If the profile has a constitution (`CONSTITUTION_BY_PROFILE` in harness.py):
    copy `rules/<stack>/` → `R/.claude/rules/`.
-5. Copy the profile → `R/.harness/profile.yaml`.
+5. Copy the profile → `R/.harness/profile.yaml`. If there are add-ons, merge
+   each add-on's `settings` into `R/.claude/settings.json`, keeping team entries
+   ([addons.md](addons.md)).
 6. Upsert the managed block in `R/CLAUDE.md` between
    `<!-- harness:start -->` / `<!-- harness:end -->` (content outside the
-   markers is never touched).
-7. Hash everything installed and write `R/.harness-pin.yaml`.
+   markers is never touched). Add-ons add their own section to the block.
+7. Hash everything installed and write `R/.harness-pin.yaml`, including an
+   `addons:` record.
 
 Everything before step 7 is previewed by the default **dry-run**; only
 `--apply` writes.
 
 `harness status` re-hashes every file in the pin manifest and additionally
 checks that each skill symlink resolves to a `SKILL.md` and that the CLAUDE.md
-markers exist. Exit code is non-zero on any problem (CI-friendly).
+markers exist. For each pinned add-on, it also checks that the add-on's
+settings entries are still present. Exit code is non-zero on any problem
+(CI-friendly). Add-on machine checks, such as the Claude Code version, print as
+warnings only.
 
 ## Mapping to upstream launchpad
 

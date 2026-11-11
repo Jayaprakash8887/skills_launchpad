@@ -17,3 +17,12 @@ This kit adapts MIT-licensed content from the
   [launchpad](https://github.com/drivestream-lab/launchpad) (MIT).
 
 Copies of the upstream MIT license terms apply to the adapted content.
+
+## Add-ons
+
+- `addons/egm/` enables Google's
+  [Elephant-Goldfish Model](https://github.com/google/elephant-goldfish-model)
+  plugin (Apache-2.0). No EGM code or content is copied into this kit. The
+  add-on only points Claude Code at the upstream marketplace, at a pinned tag,
+  and Claude Code installs the plugin from there under its own license. The
+  gate definitions and usage guidance in `addons/egm/` are original to this kit.

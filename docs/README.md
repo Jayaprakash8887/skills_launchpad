@@ -12,5 +12,6 @@
 | [profiles.md](profiles.md) | Profile schema: stack key → skill lists + layout defaults skills read at run time |
 | [references.md](references.md) | The shared contracts: workflow.yaml, delivery-contract.yaml, ids, handoffs, artifacts, forge policy |
 | [cli.md](cli.md) | `harness list/apply/status`, the pin manifest, the managed CLAUDE.md block, extension points |
+| [addons.md](addons.md) | Optional add-ons (`--with`): the `egm` add-on (Elephant-Goldfish Model review gates), settings merge, writing a new add-on |
 
 Provenance and licensing of adapted content: [NOTICE.md](../NOTICE.md).

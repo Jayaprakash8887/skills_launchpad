@@ -29,6 +29,8 @@ readiness. Branch/commit/push/PR/issue/label/merge happen only via forge skills
 Content skills must not apply labels, commit, push, open/merge PRs, or update
 boards.
 
+{{ADDONS_SECTION}}
+
 ### Before changing behavior
 
 1. Read `.claude/rules/code-guidelines-index.md` (when this repo has a constitution).

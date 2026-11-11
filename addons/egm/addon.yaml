@@ -1,0 +1,48 @@
+# EGM add-on: Google's Elephant-Goldfish Model plugin for Claude Code.
+#
+#   harness apply --repo R --profile P --with egm --apply
+#
+# The plugin is not bundled. Claude Code installs it from upstream, at the
+# marketplace ref pinned below, when someone trusts the repo folder.
+# To upgrade EGM: change `ref`, `plugin_version` (and `min_claude_code` if the
+# upstream minimum changed), bump the kit VERSION, re-apply.
+
+addon: egm
+title: Elephant-Goldfish Model (EGM)
+upstream: https://github.com/google/elephant-goldfish-model
+license: Apache-2.0
+plugin: egm@egm # <plugin>@<marketplace>
+plugin_version: "0.1.1"
+min_claude_code: "2.1.271" # older versions silently break reviewer isolation
+profiles: [python-backend, meta-pm]
+
+commands:
+  - /egm:egm-review
+  - /egm:egm-resolve
+  - /egm:egm-drift-report
+  - /egm:egm-brainstorm
+  - /egm:egm-draft
+
+# Merged into the target repo's .claude/settings.json. Objects are merged key
+# by key, lists are unioned, and every team entry already there is kept.
+# `harness status` checks that each entry below is still present.
+settings:
+  extraKnownMarketplaces:
+    egm:
+      source:
+        source: github
+        repo: google/elephant-goldfish-model
+        ref: v0.1.1
+  enabledPlugins:
+    egm@egm: true
+  permissions:
+    allow:
+      # EGM's reviewer agents read their persona and rubric files from the
+      # plugin cache, which is outside the repo.
+      - Read(~/.claude/plugins/cache/egm/egm/*/agents/**)
+      - Read(~/.claude/plugins/cache/egm/egm/*/docs/**)
+      - Read(~/.claude/plugins/cache/egm/egm/*/resources/**)
+      - Read(~/.claude/plugins/cache/egm/egm/*/skills/**)
+    deny:
+      # Reviewers search the whole folder. Keep local secrets out of reach.
+      - Read(**/.env)

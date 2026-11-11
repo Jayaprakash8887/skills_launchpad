@@ -85,6 +85,10 @@ git add -A && git commit -m "Seed python-backend harness"
 | `.harness/profile.yaml` | Layout defaults every skill reads (spec dirs, test dirs) |
 | `.harness-pin.yaml` | Pin: kit version + sha256 of every installed file |
 
+**Optional: independent review with EGM.** Add `--with egm` to either `apply` to enable
+Google's Elephant-Goldfish Model plugin. It adds fresh-context reviews of the PRD, the
+TDD and the plan, plus a drift check after each wave. See [addons.md](addons.md).
+
 ### 4. Sanity check in VSCode
 
 Open the repo in VSCode, start Claude Code, and:

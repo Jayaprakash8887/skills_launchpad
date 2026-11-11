@@ -1,0 +1,74 @@
+apiVersion: skills-launchpad/v1
+kind: AddonGates
+addon: egm
+
+# Optional, manual review gates. They do NOT change references/workflow.yaml
+# (sdd-delivery/v2): skills still derive their next step from the pinned
+# workflow. When the workflow reaches a gate's anchor, a person may run the
+# gate, act on its outcome, then continue the pinned workflow.
+#
+# Placeholders: {reports_dir}, {prd_root}, {spec_root} come from
+# .harness/profile.yaml; {INIT} is the initiative id (for example INIT-001).
+# EGM skills can only be started by a person typing the command.
+
+gates:
+  - id: prd-review
+    profiles: [meta-pm]
+    before: validate-requirements
+    command: /egm:egm-review
+    preset: Feature spec only
+    target: "{prd_root}/{INIT}.md"
+    artifact_dir: "{reports_dir}/egm/{INIT}/prd-review/"
+    on_findings: >-
+      Run /egm:egm-resolve, preferably in the session that wrote the PRD, then
+      continue to validate-requirements.
+    on_needs_input: requirements-human-decision
+
+  - id: design-review
+    profiles: [python-backend]
+    after: spec-technical-review
+    before: technical-review-approval
+    command: /egm:egm-review
+    preset: Feature spec only
+    target: "{reports_dir}/Technical-Review-{INIT}.md"
+    artifact_dir: "{reports_dir}/egm/{INIT}/design-review/"
+    on_findings: >-
+      Run /egm:egm-resolve, then technical-review-approval, so the PE accepts
+      the resolved TDD and ADRs.
+    on_needs_input: spec-human-decision
+    note: >-
+      Reviewers see only the target file and the files it links to. The TDD
+      must link the product spec, the feasibility report and the Draft ADRs.
+
+  - id: plan-review
+    profiles: [python-backend]
+    after: spec-implementation-plan
+    before: coding-readiness
+    command: /egm:egm-review
+    preset: Implementation plan only
+    rounds: 1
+    target: "{reports_dir}/Implementation-Plan-{INIT}.md"
+    artifact_dir: "{reports_dir}/egm/{INIT}/plan-review/"
+    on_findings: >-
+      Run /egm:egm-resolve, then coding-readiness. Do not run a second round:
+      on a code-level plan, each round's fixes create new findings. The
+      wave's tests check the rest.
+    on_needs_input: spec-human-decision
+    note: >-
+      EGM looks for a heading named "Implementation Plan". In the kit's plan
+      the detailed part starts at "## 2. Implementation phases"; say so in
+      the prompt.
+
+  - id: drift-report
+    profiles: [python-backend]
+    after: ground-spec
+    before: wave-done-action
+    command: /egm:egm-drift-report
+    target: "{spec_root}/"
+    artifact_dir: "{reports_dir}/egm/{INIT}/drift-W{N}/"
+    on_findings: >-
+      Link the drift report from the wave's Ground Report. Spec changes go to
+      spec-human-decision; code fixes go to the next wave's /pre-implement.
+    note: >-
+      Name the source and test directories in the prompt, and ask for every
+      DESIGN-GAP comment to be listed as a divergence.
