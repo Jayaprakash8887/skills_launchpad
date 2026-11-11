@@ -12,7 +12,8 @@ A VSCode/Claude Code adaptation of
 
 **Starting a new project?** Follow the [greenfield walkthrough](docs/greenfield.md).
 **Adding the kit to a project that already has code?** Read
-[existing-project.md](docs/existing-project.md) first. `apply` replaces `.claude/rules/`.
+[existing-project.md](docs/existing-project.md) first. `apply` keeps your own rules and skills,
+and stops before writing anything if one has the same name as a kit file.
 **Understanding the pieces?** See the [documentation index](docs/README.md) —
 [architecture](docs/architecture.md) · [rules](docs/rules.md) · [skills](docs/skills.md) ·
 [profiles](docs/profiles.md) · [references](docs/references.md) · [CLI](docs/cli.md) ·

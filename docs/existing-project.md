@@ -2,7 +2,9 @@
 
 The kit works on a repo that already has code. There are three cautions:
 
-- **`apply` deletes your own `.claude/rules/`.** It replaces that folder with the kit's rules.
+- **Name clashes stop `apply`.** If one of your own rule files or skills has the same name as
+  one of the kit's, `apply` stops before writing anything. Your other files in
+  `.claude/rules/` and `.claude/skills/` are left alone.
 - **The skills expect the profile's folder layout.**
 - **Only Python services have a constitution today.**
 
@@ -18,18 +20,25 @@ and what changes when the code already exists.
 | Is there a PM workspace? | Create a `<client>-meta` repo with the `meta-pm` profile ([greenfield.md](greenfield.md), Day 0 step 1). It has no constitution, so it suits any stack. |
 | Does the repo match the profile layout? (`src/`, `tests/{unit,verify,fixtures,debug}`, `tests/README.md`, `docs/specification/{product,adr,reports,as-built}`) | Create the missing folders. If the repo has a different layout, add a profile variant in the kit. Do not edit `.harness/profile.yaml` in the repo: `status` reports it as drift, and the next `apply` overwrites it. |
 
-## 2. Protect what `apply` overwrites
+## 2. Check what `apply` touches
 
-| Path in your repo | What `apply` does | Do this first |
-|---|---|---|
-| `.claude/rules/` | **Deletes the folder** and copies in the kit's rules | Move your rules elsewhere, for example `docs/team-rules/`. Import them from `CLAUDE.md`, outside the managed block, with `@docs/team-rules/<file>.md` lines. |
-| `.claude/skills/<name>` with the same name as a kit skill | Replaced by a symlink to the kit's skill | Rename your skill. |
-| `.harness/`, `.harness-pin.yaml` | Owned by the kit | Nothing should be there yet. |
-| `CLAUDE.md` | Managed block appended. Your text is kept. | Nothing. |
-| `.claude/settings.json` (only with `--with egm`) | EGM entries merged in. Your entries are kept. Invalid JSON stops the run. | Check the merge in the dry-run output. |
+`apply` owns only the files it installed. It knows which files those are from the pin
+manifest in `.harness-pin.yaml`.
 
-Always read the dry-run first. A `refresh .claude/rules` line, or a `symlink .claude/skills/…`
-line over a folder you own, means something of yours would be replaced.
+| Path in your repo | What `apply` does |
+|---|---|
+| `.claude/rules/` | Adds the kit's rule files and keeps yours. A file of yours with the same name as a kit rule stops the run; rename it, or delete it if it is an old copy of the kit's rule. An identical copy is simply taken over. |
+| `.claude/skills/<name>` | Adds a symlink per kit skill. A skill of yours with the same name stops the run; rename it. |
+| `.harness/`, `.harness-pin.yaml` | Owned by the kit. Nothing should be there yet. |
+| `CLAUDE.md` | Managed block appended. Your text is kept. |
+| `.claude/settings.json` (only with `--with egm`) | EGM entries merged in. Your entries are kept. Invalid JSON stops the run. |
+
+Run the dry-run first. It reports every name clash at once, and `apply` writes nothing until
+they are resolved. The line `rules … N file(s) of yours kept` confirms your rule files stay.
+
+Your rule files in `.claude/rules/` stay where they are, but the `CLAUDE.md` managed block
+imports only the kit's rules. Keep importing yours from your own part of `CLAUDE.md`, outside
+the markers.
 
 ## 3. Seed on a branch
 

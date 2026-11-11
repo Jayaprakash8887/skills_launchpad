@@ -308,6 +308,7 @@ folders yet, so also delete `docs/specification/reports/egm/INIT-<id>/` and
 |---|---|
 | Skill isn't offered as `/command` | `.claude/skills/<name>` symlink broken — `harness status` reports it; re-run `apply --apply`. |
 | `status` reports `drift:` | Someone edited an installed file in the repo. Harness files are read-only by convention — change them in the kit, then re-apply. Re-apply also heals the drift. |
+| `apply stopped — N conflict(s), nothing was written` | A file of yours in `.claude/rules/` or `.claude/skills/` has the same name as a kit file. Rename it, or delete it if it is an old copy of the kit's file, then re-run. See [existing-project.md](existing-project.md). |
 | Skill writes to wrong paths | Wrong profile for this repo, or you edited `.harness/profile.yaml` locally — fix the profile in the kit. |
 | PM skill run in an app repo (or vice versa) | Lanes are workspace-bound. Move to the right repo; the skills read `.harness/profile.yaml` to know which lane they're in. |
 | Claude ignores a rule | Check the rule is imported in the `CLAUDE.md` managed block (`@.claude/rules/...`) and the block markers are intact. |

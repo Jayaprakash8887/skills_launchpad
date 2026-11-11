@@ -371,13 +371,104 @@ def ensure_symlink(target: Path, link: Path, *, dry: bool, log: list[str]) -> No
     log.append(f"  {'[dry-run] ' if dry else '✔ '}symlink  {link} → {rel}")
     if dry:
         return
-    if link.is_symlink() or link.exists():
-        if link.is_dir() and not link.is_symlink():
-            shutil.rmtree(link)
-        else:
-            link.unlink()
+    if link.is_symlink():
+        link.unlink()
+    elif link.exists():
+        # find_conflicts() stops apply before this; never delete a team's real files.
+        raise SystemExit(f"{link} exists and is not a harness symlink — refusing to replace it")
     link.parent.mkdir(parents=True, exist_ok=True)
     link.symlink_to(rel)
+
+
+# ── shared folders: the kit owns only the files it installed ─────────────────
+# .claude/rules/ and .claude/skills/ may also hold the team's own files. The
+# kit owns a rule file only if the previous pin manifest lists it; it owns a
+# skill entry only if it is a symlink into .harness/skills/.
+
+RULES_REL = Path(".claude") / "rules"
+
+
+def pinned_manifest(repo: Path) -> dict[str, str]:
+    pin_path = repo / PIN_FILE
+    if not pin_path.is_file():
+        return {}
+    return (yaml.safe_load(pin_path.read_text()) or {}).get("manifest") or {}
+
+
+def kit_rule_files(rules_stack: str) -> dict[Path, Path]:
+    """{path relative to .claude/rules: kit source file}."""
+    src_dir = KIT_ROOT / "rules" / rules_stack
+    return {p.relative_to(src_dir): p for p in sorted(src_dir.rglob("*")) if p.is_file()}
+
+
+def find_conflicts(
+    repo: Path, skills: list[str], rules_stack: str | None, owned: dict[str, str]
+) -> list[str]:
+    """Team files that apply would have to overwrite. Checked before any write."""
+    conflicts: list[str] = []
+    if rules_stack:
+        for rel, src in kit_rule_files(rules_stack).items():
+            dest = repo / RULES_REL / rel
+            key = str(RULES_REL / rel)
+            if dest.is_symlink() or (dest.exists() and not dest.is_file()):
+                conflicts.append(f"{key}: exists and is not a regular file")
+            elif dest.is_file() and key not in owned and sha256_file(dest) != sha256_file(src):
+                conflicts.append(
+                    f"{key}: your file has the same name as a kit rule. Rename or move it "
+                    f"(delete it if it is an old copy of the kit rule)."
+                )
+    for name in skills:
+        link = repo / ".claude" / "skills" / name
+        want = os.path.normpath(repo / ".harness" / "skills" / name)
+        if link.is_symlink():
+            have = os.path.normpath(os.path.join(link.parent, os.readlink(link)))
+            if have != want:
+                conflicts.append(
+                    f".claude/skills/{name}: a symlink to {os.readlink(link)}, not to the kit's "
+                    f"skill. Rename your skill."
+                )
+        elif link.exists():
+            conflicts.append(
+                f".claude/skills/{name}: your skill has the same name as a kit skill. Rename it."
+            )
+    return conflicts
+
+
+def sync_rules(
+    rules_stack: str, repo: Path, owned: dict[str, str], *, dry: bool, log: list[str]
+) -> list[Path]:
+    """Install the kit's rule files; remove kit-owned ones the kit dropped; keep the rest."""
+    want = kit_rule_files(rules_stack)
+    dest_dir = repo / RULES_REL
+    counts = {"install": 0, "refresh": 0, "unchanged": 0}
+    for rel, src in want.items():
+        dest = dest_dir / rel
+        if dest.is_file() and sha256_file(dest) == sha256_file(src):
+            counts["unchanged"] += 1
+            continue
+        counts["refresh" if dest.exists() else "install"] += 1
+        if not dry:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, dest)
+    for key in sorted(owned):
+        path = Path(key)
+        if path.parts[:2] != RULES_REL.parts:
+            continue
+        rel = path.relative_to(RULES_REL)
+        if rel not in want and (dest_dir / rel).is_file():
+            log.append(f"  {'[dry-run] ' if dry else '✔ '}remove  {dest_dir / rel}  (dropped from the kit)")
+            if not dry:
+                (dest_dir / rel).unlink()
+    team = sorted(
+        p.relative_to(dest_dir)
+        for p in (dest_dir.rglob("*") if dest_dir.is_dir() else [])
+        if p.is_file() and p.relative_to(dest_dir) not in want
+        and str(RULES_REL / p.relative_to(dest_dir)) not in owned
+    )
+    summary = ", ".join(f"{n} {k}" for k, n in counts.items() if n)
+    kept = f"; {len(team)} file(s) of yours kept" if team else ""
+    log.append(f"  {'[dry-run] ' if dry else '✔ '}rules    {dest_dir}  ({summary}{kept})")
+    return list(want)
 
 
 # ── CLAUDE.md managed block ──────────────────────────────────────────────────
@@ -518,6 +609,18 @@ def cmd_apply(args: argparse.Namespace) -> int:
         print(f"  ℹ add-on {name!r} kept from {PIN_FILE} (drop it with --without {name})")
     print()
 
+    # 0. pre-flight: stop before any write if apply would overwrite team files,
+    #    or if .claude/settings.json cannot be merged.
+    owned = pinned_manifest(repo)
+    conflicts = find_conflicts(repo, skills, rules_stack, owned)
+    if addons:
+        read_settings(repo)  # raises on invalid JSON
+    if conflicts:
+        print(f"✖ apply stopped — {len(conflicts)} conflict(s), nothing was written:")
+        for c in conflicts:
+            print(f"  - {c}")
+        return 1
+
     # 1. skills hub + runtime symlinks
     for name in skills:
         src = find_skill_src(name)
@@ -542,9 +645,10 @@ def cmd_apply(args: argparse.Namespace) -> int:
             if not dry:
                 shutil.rmtree(dest)
 
-    # 3. constitution rules
+    # 3. constitution rules (file by file; the team's own files are kept)
+    rule_files: list[Path] = []
     if rules_stack:
-        copy_tree(KIT_ROOT / "rules" / rules_stack, repo / ".claude" / "rules", dry=dry, log=log)
+        rule_files = sync_rules(rules_stack, repo, owned, dry=dry, log=log)
 
     # 4. profile copy
     prof_dest = repo / ".harness" / "profile.yaml"
@@ -577,8 +681,8 @@ def cmd_apply(args: argparse.Namespace) -> int:
         return 0
 
     manifest = dir_manifest(repo / ".harness", repo)
-    if rules_stack:
-        manifest.update(dir_manifest(repo / ".claude" / "rules", repo))
+    for rel in rule_files:  # only the kit's rules, never the team's files
+        manifest[str(RULES_REL / rel)] = sha256_file(repo / RULES_REL / rel)
     pin = {
         "kit": "skills_launchpad",
         "kit_version": kit_version(),

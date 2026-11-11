@@ -5,6 +5,8 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -144,6 +146,7 @@ class ApplyWithAddonTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self.apply("--with", "egm")
         self.assertEqual(self.settings.read_text(), "{ not json")
+        self.assertFalse((self.repo / ".harness").exists(), "stopped before any write")
 
     def test_dry_run_writes_nothing(self, _notes) -> None:
         code, out = run("apply", "--repo", str(self.repo), "--profile", "python-backend", "--with", "egm")
@@ -168,6 +171,96 @@ class NoAddonTest(unittest.TestCase):
             self.assertIn("boards.\n\n### Before changing behavior", claude_md)
             self.assertFalse((Path(tmp) / ".claude" / "settings.json").exists())
             self.assertNotIn("addons", yaml.safe_load((Path(tmp) / ".harness-pin.yaml").read_text()))
+
+
+class TeamFilesTest(unittest.TestCase):
+    """apply owns only the files it installed in .claude/rules/ and .claude/skills/."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.repo = Path(self._tmp.name)
+        self.rules = self.repo / ".claude" / "rules"
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def apply(self, *extra: str) -> tuple[int, str]:
+        return run("apply", "--repo", str(self.repo), "--profile", "python-backend", *extra)
+
+    def manifest(self) -> dict:
+        return yaml.safe_load((self.repo / ".harness-pin.yaml").read_text())["manifest"]
+
+    def test_team_rule_files_are_kept_and_not_pinned(self) -> None:
+        self.rules.mkdir(parents=True)
+        (self.rules / "team.md").write_text("team rule\n")
+        code, out = self.apply("--apply")
+        self.assertEqual(code, 0)
+        self.assertIn("1 file(s) of yours kept", out)
+        self.assertEqual((self.rules / "team.md").read_text(), "team rule\n")
+        self.assertTrue((self.rules / "architecture.md").is_file())
+        self.assertNotIn(".claude/rules/team.md", self.manifest())
+        self.assertIn(".claude/rules/architecture.md", self.manifest())
+        self.assertEqual(self.apply("--apply")[0], 0)  # re-apply keeps it too
+        self.assertTrue((self.rules / "team.md").is_file())
+        self.assertEqual(run("status", "--repo", str(self.repo))[0], 0)
+
+    def test_same_name_rule_stops_apply_before_any_write(self) -> None:
+        self.rules.mkdir(parents=True)
+        (self.rules / "architecture.md").write_text("our own architecture rule\n")
+        for extra in ((), ("--apply",)):  # dry-run reports it too
+            code, out = self.apply(*extra)
+            self.assertEqual(code, 1)
+            self.assertIn(".claude/rules/architecture.md: your file has the same name", out)
+        self.assertEqual((self.rules / "architecture.md").read_text(), "our own architecture rule\n")
+        self.assertFalse((self.repo / ".harness").exists())
+        self.assertFalse((self.repo / "CLAUDE.md").exists())
+
+    def test_identical_copy_of_a_kit_rule_is_adopted(self) -> None:
+        self.rules.mkdir(parents=True)
+        shutil.copyfile(KIT_ROOT / "rules/python-backend/architecture.md", self.rules / "architecture.md")
+        self.assertEqual(self.apply("--apply")[0], 0)
+        self.assertIn(".claude/rules/architecture.md", self.manifest())
+
+    def test_kit_owned_rule_dropped_from_kit_is_removed(self) -> None:
+        self.apply("--apply")
+        (self.rules / "retired.md").write_text("old kit rule\n")
+        (self.rules / "team.md").write_text("team rule\n")
+        pin_path = self.repo / ".harness-pin.yaml"
+        pin = yaml.safe_load(pin_path.read_text())
+        pin["manifest"][".claude/rules/retired.md"] = "0" * 64  # as if an older kit installed it
+        pin_path.write_text(yaml.safe_dump(pin, sort_keys=False))
+        code, out = self.apply("--apply")
+        self.assertEqual(code, 0)
+        self.assertIn("dropped from the kit", out)
+        self.assertFalse((self.rules / "retired.md").exists())
+        self.assertTrue((self.rules / "team.md").exists())
+
+    def test_kit_rule_edited_in_repo_is_restored_not_a_conflict(self) -> None:
+        self.apply("--apply")
+        (self.rules / "architecture.md").write_text("local edit\n")
+        self.assertEqual(run("status", "--repo", str(self.repo))[0], 1)  # drift
+        self.assertEqual(self.apply("--apply")[0], 0)  # kit-owned: re-apply heals it
+        self.assertEqual(run("status", "--repo", str(self.repo))[0], 0)
+
+    def test_team_skill_with_kit_name_stops_apply(self) -> None:
+        skill = self.repo / ".claude" / "skills" / "spec-draft"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text("our skill\n")
+        code, out = self.apply("--apply")
+        self.assertEqual(code, 1)
+        self.assertIn(".claude/skills/spec-draft: your skill has the same name", out)
+        self.assertEqual((skill / "SKILL.md").read_text(), "our skill\n")
+
+    def test_foreign_symlink_with_kit_name_stops_apply(self) -> None:
+        elsewhere = self.repo / "my-skills" / "spec-draft"
+        elsewhere.mkdir(parents=True)
+        link = self.repo / ".claude" / "skills" / "spec-draft"
+        link.parent.mkdir(parents=True)
+        link.symlink_to(os.path.relpath(elsewhere, link.parent))
+        code, out = self.apply("--apply")
+        self.assertEqual(code, 1)
+        self.assertIn("not to the kit's skill", out)
+        self.assertTrue(link.is_symlink())
 
 
 class MergeSettingsTest(unittest.TestCase):

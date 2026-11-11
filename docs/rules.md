@@ -8,7 +8,9 @@ that stack. Adapted from
 
 ## How rules reach the agent
 
-1. `harness apply` copies `rules/<stack>/` → `<repo>/.claude/rules/`.
+1. `harness apply` copies each file of `rules/<stack>/` into
+   `<repo>/.claude/rules/`. Files the team keeps there are left alone, and a
+   team file with a kit rule's name stops the apply.
 2. The managed block in `CLAUDE.md` contains one `@.claude/rules/<file>.md`
    import line per rule.
 3. Claude Code resolves `@` imports when it loads `CLAUDE.md`, so **every rule
@@ -42,8 +44,11 @@ Code ignores it; it documents intent and eases diffing against upstream.
 
 ## Ownership and change flow
 
-- In consumer repos, `.claude/rules/` is **read-only by convention**; the pin
-  manifest makes any local edit visible as `drift:` in `harness status`.
+- In consumer repos, the kit's files in `.claude/rules/` are **read-only by
+  convention**. The pin manifest makes any local edit visible as `drift:` in
+  `harness status`, and the next `apply` restores the file. Team rules in the
+  same folder are not pinned and are not touched; import them from the team's
+  part of `CLAUDE.md`.
 - To change a rule: edit it **in the kit**, bump [VERSION](../VERSION),
   re-run `harness apply --apply` in each consuming repo, and commit the diff
   there. That is the whole upgrade protocol.

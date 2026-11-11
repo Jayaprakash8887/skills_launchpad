@@ -22,10 +22,25 @@ Installs or refreshes the harness in a target repo — idempotent, so re-running
 after a kit upgrade is the upgrade mechanism. Step-by-step behavior is
 documented in [architecture.md](architecture.md#what-apply-does-in-order).
 
-Refresh semantics: installed trees (`.harness/skills/<name>`, `.claude/rules`,
-`.harness/references`, `.harness/addons/<name>`) are **replaced wholesale**
-(`rm -rf` + copy), so local edits do not survive — intentionally. Two files are
-merged instead:
+Refresh semantics: trees under `.harness/` (`skills/<name>`, `references`,
+`addons/<name>`) are **replaced wholesale** (`rm -rf` + copy), so local edits do
+not survive — intentionally; `.harness/` belongs to the kit.
+
+`.claude/rules/` and `.claude/skills/` are shared with the team, so there the
+kit owns **only the files it installed**:
+
+- **Rules** are copied file by file. A kit rule edited in the repo is restored.
+  A rule the kit no longer ships is removed, but only if the previous pin
+  manifest lists it. Other files are never touched, and the manifest pins only
+  the kit's rules.
+- **Skills** get one symlink each into `.harness/skills/`.
+- **Pre-flight:** before writing anything, `apply` checks for team files that
+  would be overwritten: a rule file with a kit rule's name and different
+  content, or a skill folder or foreign symlink with a kit skill's name. It
+  lists every one and exits 1, in dry-run too. It also checks that
+  `.claude/settings.json` is valid JSON when an add-on is applied.
+
+Two files are merged instead:
 
 - **`CLAUDE.md`:** only the text between the markers is replaced.
 - **`.claude/settings.json`:** only touched when an add-on is applied. The
@@ -62,7 +77,7 @@ Written only on a real `--apply`, after files land:
 
 ```yaml
 kit: skills_launchpad
-kit_version: 0.2.0            # from VERSION at apply time
+kit_version: 0.2.1            # from VERSION at apply time
 profile: python-backend
 delivery_contract: sdd-delivery/v2
 skills: [spec-draft, initiative-feasibility, ...]

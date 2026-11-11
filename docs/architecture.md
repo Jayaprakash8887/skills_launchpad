@@ -52,6 +52,10 @@ runtime symlinks) but installs **real copies**:
 
 For `harness apply --repo R --profile P` (see [harness.py](../harness.py)):
 
+0. Pre-flight. If a team file in `R/.claude/rules/` or `R/.claude/skills/` has
+   the same name as a kit file (and different content), list every clash and
+   stop. Nothing is written. Files the previous pin lists are the kit's own and
+   never clash.
 1. Load `profiles/P.yaml`; collect its `development_skills` +
    `requirements_skills` + `forge_skills`.
 2. For each skill: copy `skills/<lane>/<name>/` → `R/.harness/skills/<name>/`,
@@ -60,7 +64,8 @@ For `harness apply --repo R --profile P` (see [harness.py](../harness.py)):
    `--with`, plus any already in the pin): copy `addons/<name>/` →
    `R/.harness/addons/<name>/`. For `--without`, remove that folder.
 4. If the profile has a constitution (`CONSTITUTION_BY_PROFILE` in harness.py):
-   copy `rules/<stack>/` → `R/.claude/rules/`.
+   copy each file of `rules/<stack>/` into `R/.claude/rules/`. The team's own
+   files there are kept. Kit rules dropped since the last apply are removed.
 5. Copy the profile → `R/.harness/profile.yaml`. If there are add-ons, merge
    each add-on's `settings` into `R/.claude/settings.json`, keeping team entries
    ([addons.md](addons.md)).
